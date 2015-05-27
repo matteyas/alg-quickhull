@@ -36,7 +36,7 @@
  * Description:
  *   Maximalt antal punkter.
  *------------------------------------*/
-#define MaxPoints 10000
+#define MaxPoints 100000
 
 /*------------------------------------------------
  * FUNCTIONS

@@ -513,7 +513,7 @@ void RunSandbox(int numPoints) {
 
             if (!lockHull) {
                 if (useQuickhull) Quickhull     (ps, &hull);
-                else              BruteforceHull(ps, &hull);
+                else              Incrementhull (ps, &hull);
             }
         }
 

@@ -168,7 +168,8 @@ void RunBenchmark(int numPoints) {
     printf("Benchmarking...\n");
 
     benchmarkDataT bmdbf = InitBenchmarkData(),
-                   bmdqh = InitBenchmarkData();
+                   bmdqh = InitBenchmarkData(),
+				   bmdih = InitBenchmarkData();
 
     int numSecs       = 0;
     int numIterations = 0;
@@ -179,9 +180,9 @@ void RunBenchmark(int numPoints) {
 
         RandomizePoints(ps);
 
-        BenchmarkAlgo(ps,&hull,&bmdbf, BruteforceHull );
+        //BenchmarkAlgo(ps,&hull,&bmdbf, BruteforceHull );
         BenchmarkAlgo(ps,&hull,&bmdqh, Quickhull      );
-
+		BenchmarkAlgo(ps,&hull,&bmdih, Incrementhull  );
 
         // Här ser vi till att skriva ut hur långt i benchmarket vi kommit,
         // procentuellt sett, en gång varje sekund. Så att användaren inte tror
@@ -206,10 +207,16 @@ void RunBenchmark(int numPoints) {
     bmdqh.avgBytes  /= numIterations;
     bmdqh.avgTime   /= numIterations;
 
+	bmdih.avgOps    /= numIterations;
+	bmdih.avgAllocs /= numIterations;
+	bmdih.avgBytes  /= numIterations;
+	bmdih.avgTime   /= numIterations;
+
     printf("100.0%%. Done!\n\n");
 
-    PrintStatistics("Bruteforce", &bmdbf);
-    PrintStatistics("Quickhull" , &bmdqh);
+    //PrintStatistics("Bruteforce",  &bmdbf);
+    PrintStatistics("Quickhull" ,  &bmdqh);
+	PrintStatistics("Incremental", &bmdih);
 
     printf("\nPress ENTER to exit...");
     getchar();

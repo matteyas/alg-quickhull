@@ -58,9 +58,10 @@ algorithmDataT BruteforceHull(pointsetT ps, hullT *hull) {
 
     hull->numLines = 0;
     for (int i = 0; i < ps.numPoints; i++) {
+		pointT *a, *b, *c;
+		a = &ps.points[i];
         for (int j = (i+1); j < (i+ps.numPoints); j++) {
-            pointT *a, *b, *c;
-
+			b = &ps.points[j % ps.numPoints];
             // For-loopen med k används för att kolla att alla punkter ligger på
             // rätt sida av linjen mellan punkt i och j.
 
@@ -68,9 +69,7 @@ algorithmDataT BruteforceHull(pointsetT ps, hullT *hull) {
             for (int k = 0; k < ps.numPoints; k++) {
                 // Linjen a---b är (potentiellt) ett segment i höljet. Vi avgör
                 // det genom att se vilken sida om linjen som punkten c ligger
-                // på.
-                a = &ps.points[i];
-                b = &ps.points[j % ps.numPoints];
+                // på.                
                 c = &ps.points[k];
 
                 // Nedan avgör vi vilken sida om linjen punkten ligger på.
@@ -127,6 +126,7 @@ algorithmDataT BruteforceHull(pointsetT ps, hullT *hull) {
  *   helt enkelt minne istället.
  *------------------------------------*/
 static queueADT arrayPool;
+static queueADT intPool;
 
 /*--------------------------------------
  * Function: GetPointArray()
@@ -144,6 +144,15 @@ static arrayADT GetPointArray() {
         return NewArray(sizeof(pointT *));
 
     return Dequeue(arrayPool);
+}
+static arrayADT GetIntArray() {
+	if (!intPool)
+		intPool = NewQueue(32);
+
+	if (QueueIsEmpty(intPool))
+		return NewArray(sizeof(int));
+
+	return Dequeue(intPool);
 }
 
 /*--------------------------------------
@@ -177,7 +186,7 @@ static void ReleaseArray(arrayADT a) {
  *   Hanterar punkter och löser det konvexa höljet med hjälp av den rekursiva
  *   algoritmen quickhull.
  *------------------------------------*/
-static algorithmDataT QH(arrayADT hull, pointT *a, pointT *b, arrayADT subset) {
+static algorithmDataT QH(arrayADT hull, pointT *a, pointT *b, arrayADT subset, pointT *r, bool clockwise) {
     algorithmDataT algo = { 0 };
 
     int numPoints = ArrayLength(subset);
@@ -206,7 +215,7 @@ static algorithmDataT QH(arrayADT hull, pointT *a, pointT *b, arrayADT subset) {
             pointT *point = *(pointT **)ArrayGet(hull, i);
             if (point == b) {
                 // Här stoppar vi in punkten mellan a och b.
-                ArrayInsert(hull, i, ArrayGet(subset, 0));
+                ArrayInsert(hull, i, &r);
 
                 algo.numOps = i;
                 return algo;
@@ -226,34 +235,36 @@ static algorithmDataT QH(arrayADT hull, pointT *a, pointT *b, arrayADT subset) {
      *   punkter på varsin sida om triangeln rekursivt.
      *------------------------------------------------------------------------*/
 
-    float dMax  = -FLT_MAX;
-    int   index = -1;
+ //   float dMax  = -FLT_MAX;
+ //   int   index = -1;
 
-    for (int i = 0; i < numPoints; i++) {
-        pointT *point = *(pointT **)ArrayGet(subset, i);
+	//float dx = (b->x - a->x);
+	//float dy = (b->y - a->y);
+ //   for (int i = 0; i < numPoints; i++) {
+ //       pointT *point = *(pointT **)ArrayGet(subset, i);
 
-        float d = (b->x - a->x) * (point->y - a->y)
-                - (b->y - a->y) * (point->x - a->x);
-        if (d < 0.0f) d = -d;
+ //       float d = dx * (point->y - a->y)
+ //               - dy * (point->x - a->x);
+ //       if (d < 0.0f) d = -d;
 
-        if (d > dMax) {
-            index = i;
-            dMax  = d;
-        }
-    }
+ //       if (d > dMax) {
+ //           index = i;
+ //           dMax  = d;
+ //       }
+ //   }
 
-    algo.numOps += numPoints;
+ //   algo.numOps += numPoints;
 
-    // Punkten farPoint är den punkt, av alla punkter i 'subset' som är längst
-    // bort från linjen a---b.
-    pointT *farPoint = *(pointT **)ArrayGet(subset, index);
-
+ //   // Punkten farPoint är den punkt, av alla punkter i 'subset' som är längst
+ //   // bort från linjen a---b.
+ //   pointT *farPoint = *(pointT **)ArrayGet(subset, index);
+		
     int numHullPoints = ArrayLength(hull);
     for (int i = 0; i < numHullPoints; i++) {
         pointT *point = *(pointT **)ArrayGet(hull, i);
         if (point == b) {
             // Här stoppar vi in farPoint mellan a och b.
-            ArrayInsert(hull, i, &farPoint);
+            ArrayInsert(hull, i, &r);
             algo.numOps += i;
             break;
         }
@@ -273,16 +284,45 @@ static algorithmDataT QH(arrayADT hull, pointT *a, pointT *b, arrayADT subset) {
 
     algo.numAllocs += 2;
 
+	float maxA = 0, maxB = 0;
+	pointT *rA, *rB;
+	pointT *comp1, *comp2;
+	int ctr = 0;
+	float dAx = (r->x - a->x); float dAy = (r->y - a->y); float dAgamma = dAx * a->y - dAy * a->x;
+	float dBx = (b->x - r->x); float dBy = (b->y - r->y); float dBgamma = dBx * r->y - dBy * r->x;
     for (int i = 0; i < numPoints; i++) {
         pointT *point = *(pointT **)ArrayGet(subset, i);
 
-        float dA = (farPoint->x - a->x) * (point->y - a->y)
-                 - (farPoint->y - a->y) * (point->x - a->x);
-        if (dA < 0.0f) ArrayAdd(subsetA, &point);
+		if (clockwise) {
+			comp1 = point;
+			comp2 = r;
+		}
+		else {
+			comp2 = point;
+			comp1 = r;
+		}
 
-        float dB = (b->x - farPoint->x) * (point->y - farPoint->y)
-                 - (b->y - farPoint->y) * (point->x - farPoint->x);
-        if (dB < 0.0f) ArrayAdd(subsetB, &point);
+		if (comp1->x < comp2->x) {  // hack 2: man behöver inte kolla punkter som är på fel sida så att säga
+			float dA = dAy * point->x - dAx * point->y + dAgamma;
+			if (dA < 0.0f) {
+				ArrayAdd(subsetA, &point);
+				if (dA < maxA) { // hack 1: hämta maxpunkten samtidigt som mängden byggs upp
+					maxA = dA;
+					rA = point;
+				}
+			}
+		}
+
+		if (comp1->x > comp2->x) {  // hack 2: man behöver inte kolla punkter som är på fel sida så att säga
+			float dB = dBy * point->x - dBx * point->y + dBgamma;
+			if (dB < 0.0f) {
+				ArrayAdd(subsetB, &point);
+				if (dB < maxB) { // hack 1: hämta maxpunkten samtidigt som mängden byggs upp
+					maxB = dB;
+					rB = point;
+				}
+			}
+		}
     }
 
     algo.numOps += numPoints;
@@ -304,8 +344,8 @@ static algorithmDataT QH(arrayADT hull, pointT *a, pointT *b, arrayADT subset) {
      *          a            b
      *------------------------------------------------------------------------*/
 
-    algorithmDataT algoA = QH(hull, a       , farPoint, subsetA);
-    algorithmDataT algoB = QH(hull, farPoint, b       , subsetB);
+    algorithmDataT algoA = QH(hull, a, r, subsetA, rA, clockwise);
+	algorithmDataT algoB = QH(hull, r, b, subsetB, rB, clockwise);
 
     algo.numOps    += algoA.numOps        + algoB.numOps   ;
     algo.numAllocs += algoA.numAllocs     + algoB.numAllocs;
@@ -386,7 +426,11 @@ algorithmDataT Quickhull(pointsetT ps, hullT *hull) {
      *   Vi drar en linje mellan extrempunkterna. Punkterna på de två sidorna om
      *   linjen hamnar i varsina punktsamlingar; subsetA och subsetB.
      *------------------------------------------------------------------------*/
-
+	pointT *rA, *rB;
+	float maxA = 0, maxB = 0;
+	float dx = (rightPoint->x - leftPoint->x);
+	float dy = (rightPoint->y - leftPoint->y);
+	float dGamma = dx*leftPoint->y - dy * leftPoint->x;
     for (int i = 0; i < ps.numPoints; i++) {
         pointT *point = &ps.points[i];
 
@@ -394,11 +438,22 @@ algorithmDataT Quickhull(pointsetT ps, hullT *hull) {
         if (point==leftPoint || point==rightPoint)
             continue;
 
-        float d = (rightPoint->x - leftPoint->x) * (point->y - leftPoint->y)
-                - (rightPoint->y - leftPoint->y) * (point->x - leftPoint->x);
+		float d = dy * point->x - dx * point->y + dGamma;
 
-        if (d < 0.0f) ArrayAdd(subsetA, &point); // Övre "halva."
-        else          ArrayAdd(subsetB, &point); // Nedra "halva."
+		if (d < 0.0f) {
+			ArrayAdd(subsetA, &point); // Övre "halva."
+			if (d < maxA) { // hack 1: hämta maxpunkten samtidigt som mängden byggs upp
+				maxA = d;
+				rA = point;
+			}
+		}
+		else {
+			ArrayAdd(subsetB, &point); // Nedra "halva."
+			if (d > maxB) { // hack 1: hämta maxpunkten samtidigt som mängden byggs upp
+				maxB = d;
+				rB = point;
+			}
+		}
     }
 
     algo.numOps += ps.numPoints;
@@ -410,8 +465,8 @@ algorithmDataT Quickhull(pointsetT ps, hullT *hull) {
      *   algoritmens rekursiva kärna.
      *------------------------------------------------------------------------*/
 
-    algorithmDataT algoA = QH(hullPoints, leftPoint , rightPoint, subsetA);
-    algorithmDataT algoB = QH(hullPoints, rightPoint, leftPoint , subsetB);
+	algorithmDataT algoA = QH(hullPoints, leftPoint, rightPoint, subsetA, rA, 1);
+	algorithmDataT algoB = QH(hullPoints, rightPoint, leftPoint, subsetB, rB, 0);
 
     algo.numOps    += algoA.numOps    + algoB.numOps   ;
     algo.numAllocs += algoA.numAllocs + algoB.numAllocs;
@@ -456,3 +511,218 @@ algorithmDataT Quickhull(pointsetT ps, hullT *hull) {
 }
 
 //------------------------------------------------------------------------------
+
+#define ui unsigned int
+const ui kHist = 2048;
+const ui bytes_kHist = 2048 * 3 * 4;
+
+__inline ui FloatFlip(ui f)
+{
+	ui mask = -(long)(f >> 31) | 0x80000000;
+	return f ^ mask;
+}
+__inline void FloatFlipX(ui *f)
+{
+	ui mask = -(long)(*f >> 31) | 0x80000000;
+	*f ^= mask;
+}
+__inline ui IFloatFlip(ui f)
+{
+	ui mask = ((f >> 31) - 1) | 0x80000000;
+	return f ^ mask;
+}
+__inline void IFloatFlipX(ui *f)
+{
+	ui mask = ((*f >> 31) - 1) | 0x80000000;
+	*f ^= mask;
+}
+
+// kollar om linjen AP ligger till höger om AB (perspektiv från A till B)
+__inline char Right(pointT *A, pointT *B, pointT *P) {
+	float d = (B->x - A->x) * (P->y - A->y)
+		- (B->y - A->y) * (P->x - A->x);
+
+	if (d < 0.0f)
+		return 1;
+	else
+		return 0;
+}
+
+// kollar om linjen AP ligger till vänster om AB (perspektiv från A till B)
+__inline char Left(pointT *A, pointT *B, pointT *P) {
+	float d = (B->x - A->x) * (P->y - A->y)
+		- (B->y - A->y) * (P->x - A->x);
+
+	if (d > 0.0f)
+		return 1;
+	else
+		return 0;
+}
+
+// sort it like a bitch, 4 passes tot + 2048 shits
+// notera att sorted och tempsort ska vara malloc(size(int)*ps.numpoints)
+#define _0(x)   (x & 0x7FF)
+#define _1(x)   (x >> 11 & 0x7FF)
+#define _2(x)   (x >> 22 )
+algorithmDataT RaddeSort(pointsetT ps, pointT **sorted, pointT **tempsort) {
+	algorithmDataT algo = { 0 };
+	int ops;
+
+	// konstruera histogram (det är typ counters på antal tal i olika storleksspann)
+	
+	ui *b0 = calloc(3 * kHist, 4);
+	ui *b1 = b0 + kHist;
+	ui *b2 = b1 + kHist;
+
+	algo.numAllocs++;
+	algo.numBytes = bytes_kHist;
+
+	// pass 0, beräkna histograms
+	for (ops = 0; ops < ps.numPoints; ops++) {
+		ui fi = FloatFlip(*(ui*)&ps.points[ops].x);
+
+		b0[_0(fi)] ++;
+		b1[_1(fi)] ++;
+		b2[_2(fi)] ++;
+	}
+
+	// gör nån supersummering, shrug... offsets typ
+	ui sum0 = 0, sum1 = 0, sum2 = 0;
+	ui tsum;
+	for (int i = 0; i < kHist; i++) {
+		tsum = b0[i] + sum0;
+		b0[i] = sum0 - 1;
+		sum0 = tsum;
+
+		tsum = b1[i] + sum1;
+		b1[i] = sum1 - 1;
+		sum1 = tsum;
+
+		tsum = b2[i] + sum2;
+		b2[i] = sum2 - 1;
+		sum2 = tsum;
+
+		ops++;
+	}
+
+	// pass 1, sortera på första 11 bits
+	for (int i = 0; i < ps.numPoints; i++) {
+		ui *fi = (ui*)&ps.points[i].x;
+		FloatFlipX(fi);
+		ui pos = _0(*fi);
+
+		sorted[++b0[pos]] = &ps.points[i];
+		ops++;
+	}
+
+	// pass 2, sortera på nästa 11 bits
+	for (int i = 0; i < ps.numPoints; i++) {
+		ui si = *(ui*)&sorted[i]->x;
+		ui pos = _1(si);
+
+		tempsort[++b1[pos]] = sorted[i];
+		ops++;
+	}
+
+	// pass 3, sortera på sista 10 bits
+	for (int i = 0; i < ps.numPoints; i++) {
+		ui *ai = (ui*)&tempsort[i]->x;
+		ui pos = _2(*ai);
+
+		IFloatFlipX(ai);
+
+		sorted[++b2[pos]] = tempsort[i];
+		ops++;
+	}
+
+	free(b0);
+
+	algo.numOps = ops;
+	return algo;
+}
+
+// shrug, blev snabbare att ha en funktion för det här lol
+void InitHullPoints(pointT *p1, pointT *p2) {
+	p1->next = p2;
+	p1->prev = p2;
+
+	p2->next = p1;
+	p2->prev = p1;
+}
+
+// incremental hull
+algorithmDataT Incrementhull(pointsetT ps, hullT *hull) {
+	algorithmDataT algo = { 0 }, algoRadde;
+	
+	int msize = 4 * ps.numPoints;
+
+	pointT **sortset = malloc(msize);
+	pointT **tempsort = malloc(msize);
+	
+	algo.numAllocs = 2;
+	algo.numBytes = msize << 1;
+
+	algoRadde = RaddeSort(ps, sortset, tempsort);
+	algo.numAllocs += algoRadde.numAllocs;
+	algo.numBytes += algoRadde.numBytes;
+	
+	int ops = algoRadde.numOps;
+
+	pointT
+		*p1 = sortset[0],
+		*p2 = sortset[1],
+		*LastHP = p2, *P;
+	
+	InitHullPoints(p1, p2);
+	// ta in nästa punkt, den är med i hull (den är längst till höger), ta reda på vilka tidigare hullpoints som ska bort
+	for (int i = 2; i < ps.numPoints; i++) {
+		pointT *A = sortset[i];
+
+		// stega från senaste hullpoint åt ena hållet (det här är bilden med blå linjer)
+		pointT *B = LastHP;
+		pointT *P = LastHP->prev;
+		while (Right(A, B, P)) {
+			B = P;
+			P = P->prev;
+			ops++;
+		}
+
+		// stega från senaste hullpoint åt andra hållet (bilden med gröna linjer, fast B=C då hum)
+		pointT *C = LastHP;
+		P = LastHP->next;
+		while (Left(A, C, P)) {
+			C = P;
+			P = P->next;
+			ops++;
+		}
+
+		// uppdatera neighbours
+		B->next = A;
+		A->prev = B;
+
+		C->prev = A;
+		A->next = C;
+
+		LastHP = A;
+	}
+
+	// konstruera hullfan
+	P = LastHP;
+
+	hull->numLines = 0;
+	while (1) {
+		hull->lines[hull->numLines].a = LastHP;
+		hull->lines[hull->numLines++].b = LastHP->prev;
+
+		LastHP = LastHP->prev;
+		if (LastHP == P)
+			break;
+	}
+
+	free(sortset);
+	free(tempsort);
+
+	algo.numOps = ops;
+
+	return algo;
+}

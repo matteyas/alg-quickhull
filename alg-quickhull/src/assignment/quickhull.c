@@ -1,123 +1,48 @@
 /*------------------------------------------------------------------------------
- * File: algorithms.c
+ * File: quickhull.c
  * Created: May 21, 2015
  * Last changed: May 21, 2015
  *
  * Author(s): Philip Arvidsson (philip@philiparvidsson.com)
  *
  * Description:
- *   Innehåller algoritmerna för att lösa det konvexa höljet.
+ *   Innehåller algoritmen quickhull för att lösa det konvexa höljet.
  *
  * Changes:
  *
  *----------------------------------------------------------------------------*/
 
 /*------------------------------------------------
+ * DEFINES
+ *----------------------------------------------*/
+
+/*--------------------------------------
+ * Define: ArrayPooling
+ *
+ * Description:
+ *   Kommentera ut raden nedan för att inte använda array-poolen.
+ *------------------------------------*/
+#define ArrayPooling
+
+/*------------------------------------------------
  * INCLUDES
  *----------------------------------------------*/
 
-#include "algorithms.h"
-#include "array.h"
-#include "benchmark.h"
-#include "common.h"
-#include "debug.h"
-#include "math.h"
-#include "queue.h"
+#include "quickhull.h"
+
+#include "core/common.h"
+#include "core/debug.h"
+#include "core/math.h"
+#include "core/collections/array.h"
+#include "core/collections/queue.h"
+
+#include "assignment/algorithmdata.h"
 
 #include <float.h>
 
 /*------------------------------------------------
  * FUNCTIONS
  *----------------------------------------------*/
-
-/*****************************************************
- *  _                _        __                     *
- * | |__  _ __ _   _| |_ ___ / _| ___  _ __ ___ ___  *
- * | '_ \| '__| | | | __/ _ \ |_ / _ \| '__/ __/ _ \ *
- * | |_) | |  | |_| | ||  __/  _| (_) | | | (_|  __/ *
- * |_.__/|_|   \__,_|\__\___|_|  \___/|_|  \___\___| *
- *                                                   *
- *****************************************************/
-
-/*--------------------------------------
- * Function: BruteforceHull()
- * Parameters:
- *   ps    Punktuppsättningen för vilken ett hölje ska genereras.
- *   hull  En pekare till höljet.
- *
- * Description:
- *   Genererar att konvext hölje för punktuppsättningen genom uttömmande
- *   sökning. Returnerar information om algoritmens arbete.
- *------------------------------------*/
-algorithmDataT BruteforceHull(pointsetT ps, hullT *hull) {
-    algorithmDataT algo = { 0 };
-
-    // For-looparna med i och j används för att konstruera alla tänkbara
-    // kombinationer av par bland punkterna. Vi konstruerar dem åt båda håll,
-    // d.v.s. både (a,b) och (b,a).
-
-    hull->numLines = 0;
-    for (int i = 0; i < ps.numPoints; i++) {
-        for (int j = (i+1); j < (i+ps.numPoints); j++) {
-            pointT *a, *b, *c;
-
-            // For-loopen med k används för att kolla att alla punkter ligger på
-            // rätt sida av linjen mellan punkt i och j.
-
-            bool outside = FALSE;
-            for (int k = 0; k < ps.numPoints; k++) {
-                // Linjen a---b är (potentiellt) ett segment i höljet. Vi avgör
-                // det genom att se vilken sida om linjen som punkten c ligger
-                // på.
-                a = &ps.points[i];
-                b = &ps.points[j % ps.numPoints];
-                c = &ps.points[k];
-
-                // Nedan avgör vi vilken sida om linjen punkten ligger på.
-                //
-                // d<0.0 : Punkten är utanför.
-                // d=0.0 : Punkten ligger på linjen.
-                // d>0.0 : Punkten är innanför.
-                //
-                // Dessutom har jag låtit detta utgöra algoritmens kritiska
-                // operation, vilket jag hoppas är adekvat.
-                algo.numOps++;
-                float d = (b->x - a->x) * (c->y - a->y)
-                        - (b->y - a->y) * (c->x - a->x);
-
-                if (d < 0.0f) {
-                    outside = TRUE;
-                    break;
-                }
-            }
-
-            // Om alla punkter visade sig vara innanför linjen, så behåller vi
-            // den som ett segment i det konvexa höljet.
-            if (!outside) {
-                if (hull->numLines >= hull->maxLines)
-                    Fail();
-
-                hull->lines[hull->numLines].a = a;
-                hull->lines[hull->numLines].b = b;
-                hull->numLines++;
-                break;
-            }
-        }
-    }
-
-    return algo;
-}
-
-//------------------------------------------------------------------------------
-
-/*********************************************
- *              _      _    _           _ _  *
- *   __ _ _   _(_) ___| | _| |__  _   _| | | *
- *  / _` | | | | |/ __| |/ / '_ \| | | | | | *
- * | (_| | |_| | | (__|   <| | | | |_| | | | *
- *  \__, |\__,_|_|\___|_|\_\_| |_|\__,_|_|_| *
- *     |_|                                   *
- *********************************************/
 
 /*--------------------------------------
  * Variable: arrayPool
@@ -137,13 +62,17 @@ static queueADT arrayPool;
  *   ny array, eller så återanvänder den en array från poolen.
  *------------------------------------*/
 static arrayADT GetPointArray() {
-    if (!arrayPool)
-        arrayPool = NewQueue(32);
+#   ifdef ArrayPooling
+        if (!arrayPool)
+            arrayPool = NewQueue(32);
 
-    if (QueueIsEmpty(arrayPool))
+        if (QueueIsEmpty(arrayPool))
+            return NewArray(sizeof(pointT *));
+
+        return Dequeue(arrayPool);
+#   else
         return NewArray(sizeof(pointT *));
-
-    return Dequeue(arrayPool);
+#   endif
 }
 
 /*--------------------------------------
@@ -155,14 +84,44 @@ static arrayADT GetPointArray() {
  *   Släpper tillbaka en array till poolen.
  *------------------------------------*/
 static void ReleaseArray(arrayADT a) {
-    if (QueueIsFull(arrayPool)) {
+#   ifdef ArrayPooling
+        if (QueueIsFull(arrayPool)) {
+            FreeArray(a);
+            printf("Warning: Array pool is not big enough.\n");
+            return;
+        }
+
+        ResetArray(a);
+        Enqueue(arrayPool, a);
+   #else
         FreeArray(a);
-        printf("Warning: Array pool is not big enough.\n");
-        return;
+#   endif
+}
+
+/*--------------------------------------
+ * Function: InsertBefore()
+ * Parameters:
+ *   p  Den punkt som ska sättas in i a framför q.
+ *   q  Den punkt i a som p ska sättas in framför.
+ *   a  Array med höljets punkter.
+ *
+ * Description:
+ *   Sätter in punkten p framför q, i a.
+ *------------------------------------*/
+static int InsertBefore(pointT **p, pointT *q, arrayADT a) {
+    int n = ArrayLength(a);
+    for (int i = 0; i < n; i++) {
+        pointT *point = *(pointT **)ArrayGet(a, i);
+        if (point == q) {
+            // Här stoppar vi in punkten i a, innan p.
+            ArrayInsert(a, i, p);
+            return i;
+        }
     }
 
-    ResetArray(a);
-    Enqueue(arrayPool, a);
+    // Det här får aldrig hända.
+    Fail();
+    return -1;
 }
 
 /*--------------------------------------
@@ -201,20 +160,8 @@ static algorithmDataT QH(arrayADT hull, pointT *a, pointT *b, arrayADT subset) {
      *------------------------------------------------------------------------*/
 
     if (numPoints == 1) {
-        int n = ArrayLength(hull);
-        for (int i = 0; i < n; i++) {
-            pointT *point = *(pointT **)ArrayGet(hull, i);
-            if (point == b) {
-                // Här stoppar vi in punkten mellan a och b.
-                ArrayInsert(hull, i, ArrayGet(subset, 0));
-
-                algo.numOps = i;
-                return algo;
-            }
-        }
-
-        // Hit kommer vi aldrig.
-        Fail();
+        algo.numOps = InsertBefore( ArrayGet(subset, 0), b, hull);
+        return algo;
     }
 
     /*--------------------------------------------------------------------------
@@ -234,6 +181,9 @@ static algorithmDataT QH(arrayADT hull, pointT *a, pointT *b, arrayADT subset) {
 
         float d = (b->x - a->x) * (point->y - a->y)
                 - (b->y - a->y) * (point->x - a->x);
+
+        // Vi vill mäta max avstånd oavsett sida om linjen här, så om d är
+        // negativ så ser vi till att variabeln får ett positivt värde istället.
         if (d < 0.0f) d = -d;
 
         if (d > dMax) {
@@ -248,16 +198,7 @@ static algorithmDataT QH(arrayADT hull, pointT *a, pointT *b, arrayADT subset) {
     // bort från linjen a---b.
     pointT *farPoint = *(pointT **)ArrayGet(subset, index);
 
-    int numHullPoints = ArrayLength(hull);
-    for (int i = 0; i < numHullPoints; i++) {
-        pointT *point = *(pointT **)ArrayGet(hull, i);
-        if (point == b) {
-            // Här stoppar vi in farPoint mellan a och b.
-            ArrayInsert(hull, i, &farPoint);
-            algo.numOps += i;
-            break;
-        }
-    }
+    algo.numOps += InsertBefore(&farPoint, b, hull);
 
     /*--------------------------------------------------------------------------
      * 2. ANDRA PUNKTER
@@ -285,7 +226,7 @@ static algorithmDataT QH(arrayADT hull, pointT *a, pointT *b, arrayADT subset) {
         if (dB < 0.0f) ArrayAdd(subsetB, &point);
     }
 
-    algo.numOps += numPoints;
+    algo.numOps += 2 * numPoints;
 
     /*--------------------------------------------------------------------------
      * 3. REKURSION
@@ -307,9 +248,9 @@ static algorithmDataT QH(arrayADT hull, pointT *a, pointT *b, arrayADT subset) {
     algorithmDataT algoA = QH(hull, a       , farPoint, subsetA);
     algorithmDataT algoB = QH(hull, farPoint, b       , subsetB);
 
-    algo.numOps    += algoA.numOps        + algoB.numOps   ;
-    algo.numAllocs += algoA.numAllocs     + algoB.numAllocs;
-    algo.numBytes  += algoA.numBytes      + algoB.numBytes ;
+    algo.numOps    += algoA.numOps    + algoB.numOps   ;
+    algo.numAllocs += algoA.numAllocs + algoB.numAllocs;
+    algo.numBytes  += algoA.numBytes  + algoB.numBytes ;
 
     /*--------------------------------------------------------------------------
      * 4. DEALLOKERING
@@ -356,7 +297,7 @@ algorithmDataT Quickhull(pointsetT ps, hullT *hull) {
     // höljer i medurs ordning.
     arrayADT hullPoints = GetPointArray(),
              subsetA    = GetPointArray(),
-             subsetB    = GetPointArray();;
+             subsetB    = GetPointArray();
 
     // Tre allokeringar ovan.
     algo.numAllocs += 3;
@@ -429,10 +370,11 @@ algorithmDataT Quickhull(pointsetT ps, hullT *hull) {
     int numHullPoints = ArrayLength(hullPoints);
     for (int i = 0; i < numHullPoints; i++) {
         if (hull->numLines >= hull->maxLines)
-            Fail();
+            Error("Hull is too small");
 
         hull->lines[i].a = *(pointT **)ArrayGet(hullPoints, i);
-        hull->lines[i].b = *(pointT **)ArrayGet(hullPoints, (i+1) % numHullPoints);
+        hull->lines[i].b = *(pointT **)ArrayGet(hullPoints,
+                                                (i+1) % numHullPoints);
         hull->numLines++;
     }
 
@@ -454,5 +396,3 @@ algorithmDataT Quickhull(pointsetT ps, hullT *hull) {
 
     return algo;
 }
-
-//------------------------------------------------------------------------------

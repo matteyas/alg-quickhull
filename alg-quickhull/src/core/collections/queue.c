@@ -17,9 +17,10 @@
  * INCLUDES
  *----------------------------------------------*/
 
-#include "common.h"
-#include "debug.h"
 #include "queue.h"
+
+#include "core/common.h"
+#include "core/debug.h"
 
 #include <stdlib.h>
 
@@ -61,7 +62,7 @@ queueADT NewQueue(int size) {
 
     queueADT queue = malloc(sizeof(queueCDT));
 
-    queue->data = malloc(sizeof(void *) * (size));
+    queue->data = malloc(sizeof(void *) * size);
     queue->head = 0;
     queue->tail = 0;
     queue->size = size;
@@ -93,7 +94,7 @@ void FreeQueue(queueADT queue) {
  * Description:
  *   Lägger till ett värde i en kö.
  *------------------------------------*/
-void Enqueue(queueADT queue, const void *value) {
+void Enqueue(queueADT queue, void *value) {
     Assert(!QueueIsFull(queue));
 
     queue->data[queue->tail] = value;

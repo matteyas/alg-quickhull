@@ -1,68 +1,57 @@
 /*------------------------------------------------------------------------------
- * File: common.h
+ * File: input.h
  * Created: May 15, 2015
  * Last changed: May 15, 2015
  *
  * Author(s): Philip Arvidsson (philip@philiparvidsson.com)
  *
  * Description:
- *   Blandade saker som behövs här och där.
+ *   Input-funktioner för att läsa in data från användaren.
  *
  * Changes:
  *
  *----------------------------------------------------------------------------*/
 
-#ifndef _common_h_
-#define _common_h_
+#ifndef _input_h_
+#define _input_h_
 
 /*------------------------------------------------
- * CONSTANTS
+ * INCLUDES
+ *----------------------------------------------*/
+
+#include "core/common.h"
+
+/*------------------------------------------------
+ * FUNCTIONS
  *----------------------------------------------*/
 
 /*--------------------------------------
- * Constant: Authors
+ * Function: GetBoolFromUser()
+ * Parameters:
+ *   defaultVal  Värdet som ska returneras om användaren inte svarar.
  *
  * Description:
- *   Programmets programmerare.
+ *   Låter användaren skriva in ja eller nej.
  *------------------------------------*/
-#define ProgramAuthors "Philip Arvidsson (philip@philiparvidsson.com)"
+bool GetBoolFromUser(bool defaultVal);
 
 /*--------------------------------------
- * Constant: Version
+ * Function: GetIntFromUser()
+ * Parameters:
  *
  * Description:
- *   Programmets version.
+ *   Låter användaren skriva in ett heltal.
  *------------------------------------*/
-#define ProgramVersion "0.21"
-
-/*------------------------------------------------
- * TYPES
- *----------------------------------------------*/
+int GetIntFromUser();
 
 /*--------------------------------------
- * Type: actionT
+ * Function: GetStringFromUser()
+ * Parameters:
  *
  * Description:
- *   Representerar en callback-funktion med ett argument.
+ *   Låter användaren skriva in en sträng. Glöm inte anropa free() efteråt för
+ *   att förhindra minnesläckage.
  *------------------------------------*/
-typedef void (*actionT)(void *);
+string GetStringFromUser();
 
-/*--------------------------------------
- * Type: bool
- *
- * Description:
- *   Boolesk typ.
- *------------------------------------*/
-typedef enum {
-    FALSE, TRUE
-} bool;
-
-/*--------------------------------------
- * Type: string
- *
- * Description:
- *   Strängtyp.
- *------------------------------------*/
-typedef char *string;
-
-#endif // _common_h_
+#endif // _input_h_

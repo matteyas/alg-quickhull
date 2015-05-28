@@ -1,5 +1,5 @@
 /*------------------------------------------------------------------------------
- * File: math.h
+ * File: math.c
  * Created: May 15, 2015
  * Last changed: May 21, 2015
  *
@@ -12,61 +12,17 @@
  *
  *----------------------------------------------------------------------------*/
 
-#ifndef _math_h_
-#define _math_h_
-
 /*------------------------------------------------
  * INCLUDES
  *----------------------------------------------*/
 
-#include "benchmark.h"
+#include "math.h"
+
+#include <stdlib.h>
 
 /*------------------------------------------------
- * TYPES
+ * FUNCTIONS
  *----------------------------------------------*/
-
-/*
- * Type: pointT
- *
- * Description:
- *   Representerar en punkt i euklidisk 2-dimensionell rymd.
- */
-typedef struct {
-    float x, y;
-} pointT;
-
-/*
- * Type: pointsetT
- *
- * Description:
- *   Representerar en uppsättning punkter.
- */
-typedef struct {
-    pointT* points;
-    int     numPoints;
-} pointsetT;
-
-/*
- * Type: lineT
- *
- * Description:
- *   Representerar en linje mellan två punkter.
- */
-typedef struct {
-    pointT *a, *b;
-} lineT;
-
-/*
- * Type: hullT
- *
- * Description:
- *   Representerar ett konvext hölje.
- */
-typedef struct {
-    lineT *lines;
-    int    numLines;
-    int    maxLines;
-} hullT;
 
 /*--------------------------------------
  * Function: CreatePoints()
@@ -76,7 +32,14 @@ typedef struct {
  * Description:
  *   Skapar en uppsättning punkter.
  *------------------------------------*/
-pointsetT CreatePoints(int n);
+pointsetT CreatePoints(int n) {
+    pointsetT ps;
+
+    ps.points    = malloc(sizeof(pointT) * n);
+    ps.numPoints = n;
+
+    return ps;
+}
 
 /*--------------------------------------
  * Function: FreePoints()
@@ -86,7 +49,10 @@ pointsetT CreatePoints(int n);
  * Description:
  *   Avallokerar en uppsättning punkter,
  *------------------------------------*/
-void FreePoints(pointsetT ps);
+void FreePoints(pointsetT ps) {
+    free(ps.points);
+    ps.numPoints = 0;
+}
 
 /*--------------------------------------
  * Function: InitHull()
@@ -96,7 +62,15 @@ void FreePoints(pointsetT ps);
  * Description:
  *   Initierar ett nytt hölje.
  *------------------------------------*/
-hullT InitHull(pointsetT ps);
+hullT InitHull(pointsetT ps) {
+    hullT hull;
+
+    hull.lines    = malloc(sizeof(lineT) * ps.numPoints);
+    hull.numLines = 0;
+    hull.maxLines = ps.numPoints;
+
+    return hull;
+}
 
 /*--------------------------------------
  * Function: FreeHull()
@@ -106,7 +80,11 @@ hullT InitHull(pointsetT ps);
  * Description:
  *   Avallokerar ett hölje.
  *------------------------------------*/
-void FreeHull(hullT hull);
+void FreeHull(hullT hull) {
+    free(hull.lines);
+    hull.maxLines = 0;
+    hull.numLines = 0;
+}
 
 /*--------------------------------------
  * Function: RandomizePoints()
@@ -116,7 +94,12 @@ void FreeHull(hullT hull);
  * Description:
  *   Slumpar positionerna för punkterna i den specificerade punktuppsättningen.
  *------------------------------------*/
-void RandomizePoints(pointsetT ps);
+void RandomizePoints(pointsetT ps) {
+    for (int i = 0; i < ps.numPoints; i++) {
+        ps.points[i].x = (float)rand()/RAND_MAX - 0.5f;
+        ps.points[i].y = (float)rand()/RAND_MAX - 0.5f;
+    }
+}
 
 /*--------------------------------------
  * Function: Reflect()
@@ -128,6 +111,13 @@ void RandomizePoints(pointsetT ps);
  *   Reflekterar en riktningsvektor mot en normalvektor och returnerar
  *   resultatet.
  *------------------------------------*/
-pointT Reflect(pointT d, pointT n);
+pointT Reflect(pointT d, pointT n) {
+    float dp = 2.0f * (d.x*n.x + d.y*n.y);
+    
+    pointT p = {
+        d.x - dp * n.x,
+        d.y - dp * n.y
+    };
 
-#endif // _math_h_
+    return p;
+}

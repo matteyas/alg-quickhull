@@ -1,57 +1,68 @@
 /*------------------------------------------------------------------------------
- * File: io.h
+ * File: common.h
  * Created: May 15, 2015
  * Last changed: May 15, 2015
  *
  * Author(s): Philip Arvidsson (philip@philiparvidsson.com)
  *
  * Description:
- *   Input-funktioner för att läsa in data från användaren.
+ *   Blandade saker som behövs här och där.
  *
  * Changes:
  *
  *----------------------------------------------------------------------------*/
 
-#ifndef _io_h_
-#define _io_h_
+#ifndef _common_h_
+#define _common_h_
 
 /*------------------------------------------------
- * INCLUDES
- *----------------------------------------------*/
-
-#include "common.h"
-
-/*------------------------------------------------
- * FUNCTIONS
+ * CONSTANTS
  *----------------------------------------------*/
 
 /*--------------------------------------
- * Function: GetBoolFromUser()
- * Parameters:
- *   defaultVal  Värdet som ska returneras om användaren inte svarar.
+ * Constant: Authors
  *
  * Description:
- *   Låter användaren skriva in ja eller nej.
+ *   Programmets programmerare.
  *------------------------------------*/
-bool GetBoolFromUser(bool defaultVal);
+#define ProgramAuthors "Philip Arvidsson (philip@philiparvidsson.com)"
 
 /*--------------------------------------
- * Function: GetIntFromUser()
- * Parameters:
+ * Constant: Version
  *
  * Description:
- *   Låter användaren skriva in ett heltal.
+ *   Programmets version.
  *------------------------------------*/
-int GetIntFromUser();
+#define ProgramVersion "0.27"
+
+/*------------------------------------------------
+ * TYPES
+ *----------------------------------------------*/
 
 /*--------------------------------------
- * Function: GetStringFromUser()
- * Parameters:
+ * Type: actionT
  *
  * Description:
- *   Låter användaren skriva in en sträng. Glöm inte anropa free() efteråt för
- *   att förhindra minnesläckage.
+ *   Representerar en callback-funktion med ett argument.
  *------------------------------------*/
-string GetStringFromUser();
+typedef void (*actionT)(void *);
 
-#endif // _io_h_
+/*--------------------------------------
+ * Type: bool
+ *
+ * Description:
+ *   Boolesk typ.
+ *------------------------------------*/
+typedef enum {
+    FALSE, TRUE
+} bool;
+
+/*--------------------------------------
+ * Type: string
+ *
+ * Description:
+ *   Strängtyp.
+ *------------------------------------*/
+typedef char *string;
+
+#endif // _common_h_

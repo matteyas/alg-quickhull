@@ -25,8 +25,9 @@
  * Description:
  *   Representerar en punkt i euklidisk 2-dimensionell rymd.
  */
-typedef struct {
+typedef struct pointT {
     float x, y;
+	struct pointT *prev, *next;
 } pointT;
 
 /*

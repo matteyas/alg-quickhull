@@ -175,17 +175,12 @@ void RunBenchmark(int numPoints) {
     hullT hull = InitHull(ps);
     printf(" done.\n");
 
-	RandomizePoints(ps);
-	for (int i = 0; i < ps.numPoints; i += numPoints / 10)
-		printf("%f\n", ps.points[i].x);
-	printf("\n");
-	Incremental(ps, &hull);
-
     printf("Benchmark will now run.\n");
     printf("Benchmarking...\n");
 
     benchmarkDataT bmdbf = InitBenchmarkData(),
-                   bmdqh = InitBenchmarkData();
+                   bmdqh = InitBenchmarkData(),
+				   bmdih = InitBenchmarkData();
 
     int numSecs       = 0;
     int numIterations = 0;
@@ -195,8 +190,9 @@ void RunBenchmark(int numPoints) {
     while (StopwatchElapsed(BenchmarkStopwatchID) < SecsToMicrosecs(NumSeconds)) {
         RandomizePoints(ps);
 
-        BenchmarkAlgo(ps,&hull,&bmdbf, BruteforceHull );
+        //BenchmarkAlgo(ps,&hull,&bmdbf, BruteforceHull );
         BenchmarkAlgo(ps,&hull,&bmdqh, Quickhull      );
+		BenchmarkAlgo(ps, &hull, &bmdih, Incremental);
 
         numIterations++;
 
@@ -213,10 +209,10 @@ void RunBenchmark(int numPoints) {
     FreeHull  (hull);
     FreePoints(ps);
 
-    bmdbf.avgOps    /= numIterations;
-    bmdbf.avgAllocs /= numIterations;
-    bmdbf.avgBytes  /= numIterations;
-    bmdbf.avgTime   /= numIterations;
+    bmdih.avgOps    /= numIterations;
+	bmdih.avgAllocs /= numIterations;
+	bmdih.avgBytes /= numIterations;
+	bmdih.avgTime /= numIterations;
 
     bmdqh.avgOps    /= numIterations;
     bmdqh.avgAllocs /= numIterations;
@@ -225,8 +221,9 @@ void RunBenchmark(int numPoints) {
 
     printf("100.0%%. Done!\n\n");
 
-    PrintStatistics("Bruteforce", &bmdbf);
-    PrintStatistics("Quickhull" , &bmdqh);
+    //PrintStatistics("Bruteforce", &bmdbf);
+    PrintStatistics("Quickhull"  , &bmdqh);
+	PrintStatistics("Incremental", &bmdih);
 
     printf("\nPress ENTER to exit...");
     getchar();

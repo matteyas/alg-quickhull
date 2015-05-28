@@ -176,25 +176,16 @@ algorithmDataT RaddeSort(pointsetT ps, arrayADT sorted) {
 		FloatFlipX(fi);
 		ui pos = _0(*fi);
 
-		int j = ++b0[pos];
-		int len = ArrayLength(sorted);
-		printf("%d\n", len);
-		ArraySet(sorted, j, &ps.points[i]);
+		pointT *p = &ps.points[i];
+		ArraySet(sorted, ++b0[pos], &p);
 		//sorted[++b0[pos]] = &ps.points[i];
-		
-		len = ArrayLength(sorted);
-		printf("%d\n", len);
-		printf("idx: %d\n", j);
-		
-		pointT *p = *(pointT **)ArrayGet(sorted, j);
-		printf("%f\n", p->x);
+
 		ops++;
 	}
 
 	// pass 2, sortera på nästa 11 bits
 	for (int i = 0; i < ps.numPoints; i++) {
 		pointT *p = *(pointT **)ArrayGet(sorted, i);
-		printf("%f\n", p->x);
 		ui si = *(ui*)&p->x;
 		ui pos = _1(si);
 
@@ -217,6 +208,7 @@ algorithmDataT RaddeSort(pointsetT ps, arrayADT sorted) {
 	}
 
 	free(b0);
+
 	algo.numBytes += ArrayBytes(tempsort);
 	ReleaseArray(tempsort);
 
@@ -246,6 +238,14 @@ __inline char Left(pointT *A, pointT *B, pointT *P) {
 		return 0;
 }
 
+void InitHullPoints(pointT *p1, pointT *p2) {
+	p1->next = p2;
+	p1->prev = p2;
+
+	p2->next = p1;
+	p2->prev = p1;
+}
+
 /*--------------------------------------
  * Function: Incremental()
  * Parameters:
@@ -258,13 +258,72 @@ __inline char Left(pointT *A, pointT *B, pointT *P) {
  *------------------------------------*/
 algorithmDataT Incremental(pointsetT ps, hullT *hull) {
     algorithmDataT algo = { 0 };
-	arrayADT sorted = GetPointArray();
-	RaddeSort(ps, sorted);
 	
-	for (int i = 0; i < ps.numPoints; i += ps.numPoints / 10) {
-		pointT *p = ArrayGet(sorted, i);
-		printf("%f\n", p->x);
+	arrayADT sorted = GetPointArray();
+	algo.numAllocs++;
+	
+	algorithmDataT algoRadde = RaddeSort(ps, sorted);
+	algo.numAllocs += algoRadde.numAllocs;
+	algo.numBytes += algoRadde.numBytes;
+	
+	int ops = algoRadde.numOps;
+	
+	pointT
+		*p1 = *(pointT**)ArrayGet(sorted, 0),
+		*p2 = *(pointT**)ArrayGet(sorted, 1),
+		*LastHP = p2,
+		*P;
+
+	InitHullPoints(p1, p2);
+	// ta in nästa punkt, den är med i hull (den är längst till höger), ta reda på vilka tidigare hullpoints som ska bort
+	for (int i = 2; i < ps.numPoints; i++) {
+		pointT *A = *(pointT**)ArrayGet(sorted, i);
+
+		// stega från senaste hullpoint åt ena hållet (det här är bilden med blå linjer)
+		pointT *B = LastHP;
+		pointT *P = LastHP->prev;
+		while (Right(A, B, P)) {
+			B = P;
+			P = P->prev;
+			ops++;
+		}
+
+		// stega från senaste hullpoint åt andra hållet (bilden med gröna linjer, fast B=C då hum)
+		pointT *C = LastHP;
+		P = LastHP->next;
+		while (Left(A, C, P)) {
+			C = P;
+			P = P->next;
+			ops++;
+		}
+
+		// uppdatera neighbours
+		B->next = A;
+		A->prev = B;
+
+		C->prev = A;
+		A->next = C;
+
+		LastHP = A;
 	}
+
+	// konstruera hullfan
+	P = LastHP;
+
+	hull->numLines = 0;
+	while (1) {
+		hull->lines[hull->numLines].a = LastHP;
+		hull->lines[hull->numLines++].b = LastHP->prev;
+
+		LastHP = LastHP->prev;
+		if (LastHP == P)
+			break;
+	}
+
+	algo.numBytes += ArrayBytes(sorted);
+	ReleaseArray(sorted);
+
+	algo.numOps = ops;
 
     return algo;
 }

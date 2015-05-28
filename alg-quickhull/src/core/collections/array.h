@@ -99,6 +99,19 @@ void *ArrayInsert(arrayADT a, int i, const void *value);
 int ArrayLength(arrayADT a);
 
 /*--------------------------------------
+* Function: ArraySet()
+* Parameters:
+*   a      Den array i vilken vi ska sätta ett element.
+*   index  Index där elementet ska sättas.
+*   value  Elementet som ska läggas in i arrayen.
+*
+* Description:
+*   Sätter in ett element i en array på en viss plats.
+*   Returnerar minnesadressen där noden lades in.
+*------------------------------------*/
+void *ArraySet(arrayADT a, int index, const void *value);
+
+/*--------------------------------------
  * Function: FreeArray()
  * Parameters:
  *   a  Den array som ska avallokeras.
@@ -117,6 +130,16 @@ void FreeArray(arrayADT a);
  *   Initierar och allokerar en array.
  *------------------------------------*/
 arrayADT NewArray(size_t elementSize);
+
+/*--------------------------------------
+* Function: NewArray()
+* Parameters:
+*   elemSize  Storleken, i bytes, på arrayens element.
+*
+* Description:
+*   Initierar och allokerar en array.
+*------------------------------------*/
+arrayADT NewArraySized(size_t elemSize, int initialSize);
 
 /*--------------------------------------
  * Function: ResetArray()

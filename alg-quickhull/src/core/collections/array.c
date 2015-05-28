@@ -173,6 +173,30 @@ int ArrayLength(arrayADT a) {
 }
 
 /*--------------------------------------
+* Function: ArraySet()
+* Parameters:
+*   a      Den array i vilken vi ska sätta ett element.
+*   index  Index där elementet ska sättas.
+*   value  Elementet som ska läggas in i arrayen.
+*
+* Description:
+*   Sätter in ett element i en array på en viss plats.
+*   Returnerar minnesadressen där noden lades in.
+*------------------------------------*/
+void *ArraySet(arrayADT a, int index, const void *value) {
+	if (index >= a->numElems)
+		a->numElems = index+1;
+
+	while (index >= a->maxElems)
+		DoubleArrayCapacity(a);
+
+	void *dest = (char *)a->data + (index*a->elemSize);
+	memcpy(dest, value, a->elemSize);
+
+	return dest;
+}
+
+/*--------------------------------------
  * Function: FreeArray()
  * Parameters:
  *   a  Den array som ska avallokeras.
@@ -205,6 +229,26 @@ arrayADT NewArray(size_t elemSize) {
     array->data = malloc(array->maxElems * array->elemSize);
 
     return array;
+}
+
+/*--------------------------------------
+* Function: NewArray()
+* Parameters:
+*   elemSize  Storleken, i bytes, på arrayens element.
+*
+* Description:
+*   Initierar och allokerar en array.
+*------------------------------------*/
+arrayADT NewArraySized(size_t elemSize, int initialSize) {
+	arrayADT array = malloc(sizeof(arrayCDT));
+
+	array->numElems = 0;
+	array->maxElems = initialSize;
+	array->elemSize = elemSize;
+
+	array->data = malloc(array->maxElems * array->elemSize);
+
+	return array;
 }
 
 /*--------------------------------------

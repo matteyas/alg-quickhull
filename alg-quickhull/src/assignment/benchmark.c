@@ -24,6 +24,7 @@
 
 #include "assignment/bruteforce.h"
 #include "assignment/quickhull.h"
+#include "assignment/incremental.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -173,6 +174,12 @@ void RunBenchmark(int numPoints) {
     printf("Initializing hull...");
     hullT hull = InitHull(ps);
     printf(" done.\n");
+
+	RandomizePoints(ps);
+	for (int i = 0; i < ps.numPoints; i += numPoints / 10)
+		printf("%f\n", ps.points[i].x);
+	printf("\n");
+	Incremental(ps, &hull);
 
     printf("Benchmark will now run.\n");
     printf("Benchmarking...\n");
